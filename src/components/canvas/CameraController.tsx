@@ -6,6 +6,8 @@ import { TransitMode, CameraPreset } from '../../types';
 interface CameraControllerProps {
   mode: TransitMode;
   isMobile: boolean;
+  isUserInteracting: boolean;
+  controlsRef: React.MutableRefObject<{ enabled: boolean; target: THREE.Vector3; update: () => void } | null>;
   onTransitionComplete?: (mode: TransitMode) => void;
 }
 
@@ -28,6 +30,8 @@ const PRESETS_MOBILE: Record<TransitMode, CameraPreset> = {
 export const CameraController: React.FC<CameraControllerProps> = ({
   mode,
   isMobile,
+  isUserInteracting,
+  controlsRef,
   onTransitionComplete,
 }) => {
   const { camera } = useThree();
@@ -42,6 +46,12 @@ export const CameraController: React.FC<CameraControllerProps> = ({
     desiredPos.current.set(...preset.position);
     desiredTarget.current.set(...preset.target);
 
+    if (controlsRef.current) {
+      controlsRef.current.enabled = false;
+      controlsRef.current.target.set(...preset.target);
+      controlsRef.current.update();
+    }
+
     // Dynamically set FOV based on mobile/portrait
     const perspCam = camera as THREE.PerspectiveCamera;
     perspCam.fov = preset.fov;
@@ -53,23 +63,19 @@ export const CameraController: React.FC<CameraControllerProps> = ({
   useFrame((_, delta) => {
     const lerpSpeed = Math.min(delta * 2.6, 1);
 
-    camera.position.lerp(desiredPos.current, lerpSpeed);
-    currentTarget.current.lerp(desiredTarget.current, lerpSpeed);
-    camera.lookAt(currentTarget.current);
-
-    // Subtle ambient drift in city overview only
-    if (!isTransitioning.current && mode === 'city') {
-      const t = performance.now() * 0.0003;
-      camera.position.x += Math.sin(t) * 0.007;
-      camera.position.y += Math.cos(t * 0.8) * 0.005;
-    }
-
     const posDist    = camera.position.distanceTo(desiredPos.current);
     const targetDist = currentTarget.current.distanceTo(desiredTarget.current);
 
     if (isTransitioning.current && posDist < 0.3 && targetDist < 0.25) {
       isTransitioning.current = false;
+      if (controlsRef.current) controlsRef.current.enabled = true;
       onTransitionComplete?.(mode);
+    }
+
+    if (isTransitioning.current && !isUserInteracting) {
+      camera.position.lerp(desiredPos.current, lerpSpeed);
+      currentTarget.current.lerp(desiredTarget.current, lerpSpeed);
+      camera.lookAt(currentTarget.current);
     }
   });
 

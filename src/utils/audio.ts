@@ -53,7 +53,7 @@ class SoundController {
       filter.type = 'lowpass';
 
       if (mode === 'subrail') {
-        // Deep underwater dive sound
+        // Deep underwater rail dive with a distant sonar ping.
         osc.type = 'sine';
         osc.frequency.setValueAtTime(320, now);
         osc.frequency.exponentialRampToValueAtTime(55, now + 0.9);
@@ -76,14 +76,34 @@ class SoundController {
           sonarOsc.stop(tNow + 1.2);
         }, 350);
       } else if (mode === 'air') {
-        // High soaring whoosh
+        // High soaring whoosh for an aerial pod.
         osc.type = 'sine';
         osc.frequency.setValueAtTime(350, now);
         osc.frequency.exponentialRampToValueAtTime(1100, now + 0.7);
         filter.frequency.setValueAtTime(1200, now);
         filter.frequency.exponentialRampToValueAtTime(3200, now + 0.7);
+      } else if (mode === 'city') {
+        // Soft autonomous bus arrival: two short electric door tones.
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(392, now);
+        osc.frequency.setValueAtTime(523.25, now + 0.16);
+        filter.frequency.setValueAtTime(1400, now);
+        filter.frequency.setValueAtTime(1800, now + 0.16);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.075, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+        gain.gain.setValueAtTime(0.001, now + 0.28);
+        gain.gain.linearRampToValueAtTime(0.065, now + 0.3);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.58);
+      } else if (mode === 'roads') {
+        // Smart road pod: bright inductive power-up and magnetic glide.
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(720, now + 0.55);
+        filter.frequency.setValueAtTime(500, now);
+        filter.frequency.exponentialRampToValueAtTime(2400, now + 0.55);
       } else {
-        // Roads or reset
+        // City/reset fallback.
         osc.type = 'sine';
         osc.frequency.setValueAtTime(440, now);
         osc.frequency.exponentialRampToValueAtTime(580, now + 0.4);

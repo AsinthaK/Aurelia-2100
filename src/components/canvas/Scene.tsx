@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Stars } from '@react-three/drei';
+import { OrbitControls, Stars } from '@react-three/drei';
+import { useRef, useState } from 'react';
 import { CityModel } from './CityModel';
 import { AirTransit } from './AirTransit';
 import { SmartRoads } from './SmartRoads';
@@ -16,6 +17,8 @@ interface SceneProps {
 
 export const Scene: React.FC<SceneProps> = ({ mode, isMobile, onCameraArrived }) => {
   const isSubrail = mode === 'subrail';
+  const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
+  const [isUserInteracting, setIsUserInteracting] = useState(false);
 
   // Reduce star count on mobile for performance
   const starCount = isMobile ? 1800 : 4000;
@@ -78,7 +81,25 @@ export const Scene: React.FC<SceneProps> = ({ mode, isMobile, onCameraArrived })
         />
 
         <Suspense fallback={null}>
-          <CameraController mode={mode} isMobile={isMobile} onTransitionComplete={onCameraArrived} />
+          <OrbitControls
+            ref={controlsRef}
+            enabled={false}
+            enablePan={false}
+            enableDamping
+            dampingFactor={0.08}
+            minDistance={10}
+            maxDistance={85}
+            maxPolarAngle={Math.PI * 0.86}
+            onStart={() => setIsUserInteracting(true)}
+            onEnd={() => setIsUserInteracting(false)}
+          />
+          <CameraController
+            mode={mode}
+            isMobile={isMobile}
+            isUserInteracting={isUserInteracting}
+            controlsRef={controlsRef}
+            onTransitionComplete={onCameraArrived}
+          />
           <CityModel />
           <AirTransit />
           <SmartRoads />

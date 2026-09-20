@@ -26,6 +26,7 @@ export const App: React.FC = () => {
   const [soundEnabled, setSoundEnabled] = useState(sound.enabled);
 
   const handleSelectMode = useCallback((mode: TransitMode) => {
+    sound.playTransition(mode);
     setCurrentMode(mode);
   }, []);
 
@@ -50,9 +51,9 @@ export const App: React.FC = () => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return;
       const map: Record<string, () => void> = {
-        '1': () => { sound.playClick(); sound.playTransition('air');     handleSelectMode('air'); },
-        '2': () => { sound.playClick(); sound.playTransition('roads');   handleSelectMode('roads'); },
-        '3': () => { sound.playClick(); sound.playTransition('subrail'); handleSelectMode('subrail'); },
+        '1': () => handleSelectMode('air'),
+        '2': () => handleSelectMode('roads'),
+        '3': () => handleSelectMode('subrail'),
         'Escape': () => { sound.playClick(); handleResetView(); },
         '0':      () => { sound.playClick(); handleResetView(); },
       };
