@@ -10,69 +10,78 @@ import { TransitMode } from '../../types';
 
 interface SceneProps {
   mode: TransitMode;
+  isMobile: boolean;
   onCameraArrived: (mode: TransitMode) => void;
 }
 
-export const Scene: React.FC<SceneProps> = ({ mode, onCameraArrived }) => {
+export const Scene: React.FC<SceneProps> = ({ mode, isMobile, onCameraArrived }) => {
+  const isSubrail = mode === 'subrail';
+
+  // Reduce star count on mobile for performance
+  const starCount = isMobile ? 1800 : 4000;
+
   return (
-    <div className="w-full h-full absolute inset-0 bg-space-950">
+    <div className="w-full h-full absolute inset-0">
       <Canvas
-        camera={{ position: [0, 18, 34], fov: 45, near: 0.1, far: 1000 }}
+        // Start at the mobile-friendly city overview position
+        camera={{ position: [0, 22, 46], fov: isMobile ? 60 : 45, near: 0.1, far: 600 }}
         gl={{
-          antialias: true,
+          antialias: !isMobile,           // disable AA on mobile = big perf gain
           powerPreference: 'high-performance',
           alpha: false,
+          // Limit pixel ratio on mobile to cap render load
         }}
+        dpr={isMobile ? [1, 1.5] : [1, 2]}
       >
-        <color attach="background" args={[mode === 'subrail' ? '#011022' : '#030712']} />
-        <fog attach="fog" args={[mode === 'subrail' ? '#011226' : '#030712', mode === 'subrail' ? 8 : 25, mode === 'subrail' ? 42 : 120]} />
-
-        {/* Cinematic Deep Space & Underwater Lighting */}
-        <ambientLight
-          intensity={mode === 'subrail' ? 0.8 : 0.45}
-          color={mode === 'subrail' ? '#00e5ff' : '#1e293b'}
+        <color attach="background" args={[isSubrail ? '#011022' : '#030712']} />
+        <fog
+          attach="fog"
+          args={[
+            isSubrail ? '#011226' : '#030712',
+            isSubrail ? 10 : (isMobile ? 20 : 25),
+            isSubrail ? 45 : (isMobile ? 90 : 120),
+          ]}
         />
-        {/* Distant sun / upper sky light */}
+
+        {/* === LIGHTING === */}
+        <ambientLight
+          intensity={isSubrail ? 0.8 : 0.5}
+          color={isSubrail ? '#00e5ff' : '#1e293b'}
+        />
         <directionalLight
           position={[25, 30, 20]}
-          intensity={mode === 'subrail' ? 0.6 : 1.8}
+          intensity={isSubrail ? 0.6 : 1.6}
           color="#dbeafe"
-          castShadow
+          castShadow={!isMobile}
         />
-        {/* Under-island upward cyber bounce light */}
         <directionalLight
           position={[-15, -20, -10]}
-          intensity={mode === 'subrail' ? 2.5 : 1.2}
+          intensity={isSubrail ? 2.2 : 1.2}
           color="#00F2FE"
         />
-        {/* Submerged ocean trench point light */}
-        <pointLight position={[0, -10, 0]} color={mode === 'subrail' ? '#00a6ff' : '#FF7B00'} intensity={mode === 'subrail' ? 5 : 3} distance={35} />
+        <pointLight
+          position={[0, -10, 0]}
+          color={isSubrail ? '#00a6ff' : '#FF7B00'}
+          intensity={isSubrail ? 5 : 3}
+          distance={35}
+        />
 
-        {/* Deep Space Background Stars & Cosmic Particles */}
+        {/* Deep Space Stars — reduced on mobile */}
         <Stars
-          radius={120}
-          depth={60}
-          count={4000}
+          radius={isMobile ? 80 : 120}
+          depth={40}
+          count={starCount}
           factor={4}
           saturation={1}
           fade
-          speed={0.8}
+          speed={0.6}
         />
 
         <Suspense fallback={null}>
-          {/* Smooth Cinematic Camera Rig */}
-          <CameraController mode={mode} onTransitionComplete={onCameraArrived} />
-
-          {/* Master 3D Anti-Gravity Metropolis */}
+          <CameraController mode={mode} isMobile={isMobile} onTransitionComplete={onCameraArrived} />
           <CityModel />
-
-          {/* Sky Level: Flying Buses & Glowing Neon Trails */}
           <AirTransit />
-
-          {/* Surface Level: Multi-level Illuminated Smart Highways */}
           <SmartRoads />
-
-          {/* Sub-Surface Level: Transparent Vacuum Tubes & High-Speed Trains */}
           <SubRail />
         </Suspense>
       </Canvas>

@@ -6,11 +6,23 @@ import { Header } from './components/ui/Header';
 import { TransitMode } from './types';
 import { sound } from './utils/audio';
 
+/** Detect if we're on a narrow / touch screen */
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return isMobile;
+};
+
 export const App: React.FC = () => {
+  const isMobile = useIsMobile();
   const [currentMode, setCurrentMode] = useState<TransitMode>('city');
   const [isCardVisible, setIsCardVisible] = useState(false);
 
-  // When mode changes, hide data card until camera flight completes
   const handleSelectMode = useCallback((mode: TransitMode) => {
     setIsCardVisible(false);
     setCurrentMode(mode);
@@ -21,68 +33,50 @@ export const App: React.FC = () => {
     setCurrentMode('city');
   }, []);
 
-  // Called when camera has reached its sector destination
   const handleCameraArrived = useCallback((mode: TransitMode) => {
-    if (mode !== 'city') {
-      setIsCardVisible(true);
-    }
+    if (mode !== 'city') setIsCardVisible(true);
   }, []);
 
-  // Keyboard accessibility: 1 for Air, 2 for Roads, 3 for Subrail, Esc for City View
+  // Keyboard nav (desktop)
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      if (e.key === '1') {
-        sound.playClick();
-        sound.playTransition('air');
-        handleSelectMode('air');
-      } else if (e.key === '2') {
-        sound.playClick();
-        sound.playTransition('roads');
-        handleSelectMode('roads');
-      } else if (e.key === '3') {
-        sound.playClick();
-        sound.playTransition('subrail');
-        handleSelectMode('subrail');
-      } else if (e.key === 'Escape' || e.key === '0') {
-        sound.playClick();
-        sound.playTransition('city');
-        handleResetView();
-      }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return;
+      const map: Record<string, () => void> = {
+        '1': () => { sound.playClick(); sound.playTransition('air');     handleSelectMode('air'); },
+        '2': () => { sound.playClick(); sound.playTransition('roads');   handleSelectMode('roads'); },
+        '3': () => { sound.playClick(); sound.playTransition('subrail'); handleSelectMode('subrail'); },
+        'Escape': () => { sound.playClick(); handleResetView(); },
+        '0':      () => { sound.playClick(); handleResetView(); },
+      };
+      map[e.key]?.();
     };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [handleSelectMode, handleResetView]);
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-space-950 font-sans">
-      {/* 3D WebGL Canvas Scene */}
-      <Scene mode={currentMode} onCameraArrived={handleCameraArrived} />
+    <main className="relative w-screen h-screen overflow-hidden bg-space-950 font-sans touch-none select-none">
+      {/* Full-screen 3D canvas */}
+      <Scene mode={currentMode} isMobile={isMobile} onCameraArrived={handleCameraArrived} />
 
-      {/* Top Header & Reset Button */}
+      {/* Compact mobile-first header */}
       <Header currentMode={currentMode} onResetView={handleResetView} />
 
-      {/* Floating Glassmorphism Navigation Menu (Air Transit, Smart Roads, Sub-Rail) */}
+      {/* Bottom dock (mobile) / side dock (desktop) */}
       <NavigationMenu currentMode={currentMode} onSelectMode={handleSelectMode} />
 
-      {/* Dynamic Framer Motion Telemetry Card Overlay */}
+      {/* Transit telemetry card — slides up on mobile */}
       <TransitDataCard
         mode={currentMode}
         isVisible={isCardVisible}
         onClose={() => setIsCardVisible(false)}
       />
 
-      {/* Bottom Subtle Status & Quick Guide */}
-      <footer className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+      {/* Bottom hint — hidden on mobile to avoid clutter above nav dock */}
+      <footer className="hidden md:flex fixed bottom-5 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
         <div className="glass-panel px-4 py-2 rounded-full border border-white/10 text-[11px] font-mono-tech text-slate-300 flex items-center gap-3 backdrop-blur-md">
-          <span className="inline-block w-2 h-2 rounded-full bg-cyber-cyan animate-pulse" />
-          <span>Select any Sector on the left to trigger cinematic transit zoom</span>
-          <span className="text-slate-500">|</span>
-          <span className="text-slate-400">Press [ESC] to reset view</span>
+          <span className="w-2 h-2 rounded-full bg-cyber-cyan animate-pulse inline-block" />
+          <span>Select a Sector to fly the camera · Press ESC to reset</span>
         </div>
       </footer>
     </main>
