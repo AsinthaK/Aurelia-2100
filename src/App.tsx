@@ -21,6 +21,7 @@ export const App: React.FC = () => {
   const isMobile = useIsMobile();
   const [screen, setScreen] = useState<AppScreen>('home');
   const [currentMode, setCurrentMode] = useState<TransitMode>('city');
+  const [modeSelected, setModeSelected] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [linearTracking, setLinearTracking] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(sound.enabled);
@@ -28,10 +29,12 @@ export const App: React.FC = () => {
   const handleSelectMode = useCallback((mode: TransitMode) => {
     sound.playTransition(mode);
     setCurrentMode(mode);
+    setModeSelected(true);
   }, []);
 
   const handleResetView = useCallback(() => {
     setCurrentMode('city');
+    setModeSelected(false);
     setScreen('home');
   }, []);
 
@@ -64,7 +67,7 @@ export const App: React.FC = () => {
   }, [handleSelectMode, handleResetView]);
 
   return (
-    <main className={`app-shell ${highContrast ? 'high-contrast' : ''}`}>
+    <main className={`app-shell ${highContrast ? 'high-contrast' : ''} ${modeSelected && screen === 'home' ? 'mode-selected' : ''}`}>
       <Scene mode={currentMode} isMobile={isMobile} onCameraArrived={() => undefined} />
       <div className="scene-wash" />
 
@@ -79,7 +82,7 @@ export const App: React.FC = () => {
       </header>
 
       <div className="content-frame">
-        {screen === 'home' && <HomeScreen selectedMode={currentMode} onModeChange={handleSelectMode} onDestinationSelect={handleDestinationSelect} />}
+        {screen === 'home' && <HomeScreen selectedMode={currentMode} modeSelected={modeSelected} onModeChange={handleSelectMode} onDestinationSelect={handleDestinationSelect} onResetMode={handleResetView} />}
         {screen === 'route' && <RouteDetails selectedMode={currentMode} onTrack={() => setScreen('tracking')} />}
         {screen === 'tracking' && <LiveTracking linear={linearTracking} onToggleLinear={() => setLinearTracking((value) => !value)} />}
       </div>
