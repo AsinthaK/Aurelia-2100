@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Scene } from './components/canvas/Scene';
-import { NavigationMenu } from './components/ui/NavigationMenu';
-import { TransitDataCard } from './components/ui/TransitDataCard';
-import { Header } from './components/ui/Header';
+import { Accessibility, Eye, Home, Map, Route, Volume2, VolumeX } from 'lucide-react';
+import { HomeScreen, LiveTracking, RouteDetails, AppScreen, Destination } from './components/ui/JourneyScreens';
 import { TransitMode } from './types';
 import { sound } from './utils/audio';
 
@@ -20,22 +19,31 @@ const useIsMobile = () => {
 
 export const App: React.FC = () => {
   const isMobile = useIsMobile();
+  const [screen, setScreen] = useState<AppScreen>('home');
   const [currentMode, setCurrentMode] = useState<TransitMode>('city');
-  const [isCardVisible, setIsCardVisible] = useState(false);
+  const [highContrast, setHighContrast] = useState(false);
+  const [linearTracking, setLinearTracking] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(sound.enabled);
 
   const handleSelectMode = useCallback((mode: TransitMode) => {
-    setIsCardVisible(false);
     setCurrentMode(mode);
   }, []);
 
   const handleResetView = useCallback(() => {
-    setIsCardVisible(false);
     setCurrentMode('city');
+    setScreen('home');
   }, []);
 
-  const handleCameraArrived = useCallback((mode: TransitMode) => {
-    if (mode !== 'city') setIsCardVisible(true);
+  const handleDestinationSelect = useCallback((_destination: Destination) => {
+    sound.playClick();
+    setScreen('route');
   }, []);
+
+  const toggleSound = () => {
+    sound.enabled = !soundEnabled;
+    setSoundEnabled((value) => !value);
+    if (!soundEnabled) sound.playClick();
+  };
 
   // Keyboard nav (desktop)
   useEffect(() => {
@@ -55,30 +63,31 @@ export const App: React.FC = () => {
   }, [handleSelectMode, handleResetView]);
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-space-950 font-sans touch-none select-none">
-      {/* Full-screen 3D canvas */}
-      <Scene mode={currentMode} isMobile={isMobile} onCameraArrived={handleCameraArrived} />
+    <main className={`app-shell ${highContrast ? 'high-contrast' : ''}`}>
+      <Scene mode={currentMode} isMobile={isMobile} onCameraArrived={() => undefined} />
+      <div className="scene-wash" />
 
-      {/* Compact mobile-first header */}
-      <Header currentMode={currentMode} onResetView={handleResetView} />
-
-      {/* Bottom dock (mobile) / side dock (desktop) */}
-      <NavigationMenu currentMode={currentMode} onSelectMode={handleSelectMode} />
-
-      {/* Transit telemetry card — slides up on mobile */}
-      <TransitDataCard
-        mode={currentMode}
-        isVisible={isCardVisible}
-        onClose={() => setIsCardVisible(false)}
-      />
-
-      {/* Bottom hint — hidden on mobile to avoid clutter above nav dock */}
-      <footer className="hidden md:flex fixed bottom-5 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-        <div className="glass-panel px-4 py-2 rounded-full border border-white/10 text-[11px] font-mono-tech text-slate-300 flex items-center gap-3 backdrop-blur-md">
-          <span className="w-2 h-2 rounded-full bg-cyber-cyan animate-pulse inline-block" />
-          <span>Select a Sector to fly the camera · Press ESC to reset</span>
+      <header className="app-header">
+        <button className="brand-lockup" onClick={handleResetView} aria-label="Transportation 2100 home">
+          <span className="brand-symbol"><Route aria-hidden="true" /></span><span><strong>TRANSPORTATION <b>2100</b></strong><small>Human-first city movement</small></span>
+        </button>
+        <div className="header-actions">
+          <button className={`accessibility-toggle ${highContrast ? 'is-active' : ''}`} onClick={() => setHighContrast((value) => !value)} aria-pressed={highContrast} title="Toggle high contrast and large text"><Accessibility aria-hidden="true" /><span>Access mode</span></button>
+          <button className="icon-button" onClick={toggleSound} aria-label={soundEnabled ? 'Mute audio' : 'Enable audio'}>{soundEnabled ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}</button>
         </div>
-      </footer>
+      </header>
+
+      <div className="content-frame">
+        {screen === 'home' && <HomeScreen selectedMode={currentMode} onModeChange={handleSelectMode} onDestinationSelect={handleDestinationSelect} />}
+        {screen === 'route' && <RouteDetails selectedMode={currentMode} onTrack={() => setScreen('tracking')} />}
+        {screen === 'tracking' && <LiveTracking linear={linearTracking} onToggleLinear={() => setLinearTracking((value) => !value)} />}
+      </div>
+
+      <nav className="bottom-navigation" aria-label="Main navigation">
+        <button className={screen === 'home' ? 'is-active' : ''} onClick={() => setScreen('home')} aria-current={screen === 'home' ? 'page' : undefined}><Home aria-hidden="true" /><span>Home / Search</span></button>
+        <button className={screen === 'route' ? 'is-active' : ''} onClick={() => setScreen('route')} aria-current={screen === 'route' ? 'page' : undefined}><Map aria-hidden="true" /><span>Route details</span></button>
+        <button className={screen === 'tracking' ? 'is-active' : ''} onClick={() => setScreen('tracking')} aria-current={screen === 'tracking' ? 'page' : undefined}><Eye aria-hidden="true" /><span>Live tracking</span></button>
+      </nav>
     </main>
   );
 };
